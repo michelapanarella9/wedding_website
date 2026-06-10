@@ -3,13 +3,36 @@ library(mongolite)
 
 # Environment variables
 app_password <- Sys.getenv("correct_password")
-mongo_uri <- Sys.getenv("mongodb_uri")
 
-# MongoDB connection
-rsvp_collection <- mongo(
-  collection = "rsvps",
-  db = "wedding",
-  url = mongo_uri
+# get connection string from environment (prefer MONGO_URI, then mongodb_uri, then localhost)
+mongo_uri <- Sys.getenv("MONGO_URI", unset = Sys.getenv("mongodb_uri", unset = "mongodb://localhost:27017"))
+
+# if your URI does NOT include the database, set db name here:
+db_name <- "wedding"          # change to your DB
+collection_name <- "rsvp"
+
+# create connection
+
+
+# Diagnostic: test MongoDB connection early and print helpful message on failure
+conn_ok <- FALSE
+tryCatch({
+  tmp <- mongo(collection = collection_name, db = db_name, url = mongo_uri)
+  n <- tmp$count()
+  tmp$disconnect()
+  conn_ok <- TRUE
+  message("MongoDB connection OK; collection '", collection_name, "' count: ", n)
+}, error = function(e) {
+  message("MongoDB connection failed: ", e$message)
+  message("Tried URI: ", substr(mongo_uri, 1, 200))
+})
+
+# Create the collection handle used by the app (this may still error if auth is incorrect)
+rsvp_collection <- tryCatch(
+  mongo(collection = "rsvps", db = "wedding", url = mongo_uri),
+  error = function(e) {
+    stop("Failed to create 'rsvp_collection': ", e$message)
+  }
 )
 
 ui <- fluidPage(
@@ -181,7 +204,7 @@ ui <- fluidPage(
           style = "text-align:center;",
 
           tags$img(
-            src = "wedding_photo.jpg",
+            src = "pic.png",
             class = "hero-img"
           ),
 
@@ -247,6 +270,18 @@ ui <- fluidPage(
             )
           ),
 
+          selectInput(
+            "entree",
+            "Entrée Choice",
+            choices = c(
+              "Grilled top sirloin — peppercorn gravy, fried onions, mashed potato & asparagus",
+              "Cider brined roasted chicken supreme — herb mustard sauce, mashed potato & asparagus",
+              "Seared maple & Organic lager glazed salmon — tarragon cream sauce, mashed potato & asparagus",
+              "Portobello mushroom schnitzel — mushroom \"demi\", fresh herb, mashed potato & asparagus"
+            ),
+            selected = NULL
+          ),
+
           textAreaInput(
             "message",
             "Message or Dietary Notes",
@@ -266,17 +301,17 @@ ui <- fluidPage(
           div(class = "section-title", "Wedding Details"),
 
           tags$p(class = "small-caps", "Ceremony"),
-          tags$p("4:00 PM"),
+          tags$p("3:00 PM"),
 
           tags$br(),
 
           tags$p(class = "small-caps", "Cocktail Hour"),
-          tags$p("4:15 PM – 6:00 PM"),
+          tags$p("3:15 PM – 5:00 PM"),
 
           tags$br(),
 
           tags$p(class = "small-caps", "Dinner & Dancing"),
-          tags$p("6:00 PM – Midnight"),
+          tags$p("5:00 PM – Midnight"),
 
           tags$br(),
 
@@ -342,12 +377,14 @@ server <- function(input, output, session) {
 
   observeEvent(input$submit_rsvp, {
     req(input$guest_name)
+    req(input$entree) # require a single entree choice
 
     new_rsvp <- data.frame(
       name = input$guest_name,
       attendance = input$attendance,
       guest_count = input$guest_count,
       meal = input$meal,
+      entree = input$entree,
       notes = input$message,
       submitted_at = as.character(Sys.time()),
       stringsAsFactors = FALSE
