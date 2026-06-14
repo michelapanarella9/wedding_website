@@ -3,7 +3,7 @@ library(mongolite)
 
 app_password <- Sys.getenv("correct_password")
 mongo_uri <- Sys.getenv("MONGO_URI")
-
+print(Sys.getenv("MONGO_URI"))
 db_name <- "wedding"
 collection_name <- "rsvps"
 
