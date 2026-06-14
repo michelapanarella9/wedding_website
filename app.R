@@ -270,18 +270,6 @@ ui <- fluidPage(
             )
           ),
 
-          selectInput(
-            "entree",
-            "Entrée Choice",
-            choices = c(
-              "Grilled top sirloin — peppercorn gravy, fried onions, mashed potato & asparagus",
-              "Cider brined roasted chicken supreme — herb mustard sauce, mashed potato & asparagus",
-              "Seared maple & Organic lager glazed salmon — tarragon cream sauce, mashed potato & asparagus",
-              "Portobello mushroom schnitzel — mushroom \"demi\", fresh herb, mashed potato & asparagus"
-            ),
-            selected = NULL
-          ),
-
           textAreaInput(
             "message",
             "Message or Dietary Notes",
@@ -311,7 +299,7 @@ ui <- fluidPage(
           tags$br(),
 
           tags$p(class = "small-caps", "Dinner & Dancing"),
-          tags$p("5:00 PM – Midnight"),
+          tags$p("3:00 PM – Midnight"),
 
           tags$br(),
 
@@ -377,14 +365,12 @@ server <- function(input, output, session) {
 
   observeEvent(input$submit_rsvp, {
     req(input$guest_name)
-    req(input$entree) # require a single entree choice
 
     new_rsvp <- data.frame(
       name = input$guest_name,
       attendance = input$attendance,
       guest_count = input$guest_count,
       meal = input$meal,
-      entree = input$entree,
       notes = input$message,
       submitted_at = as.character(Sys.time()),
       stringsAsFactors = FALSE
