@@ -5,7 +5,7 @@ library(mongolite)
 app_password <- Sys.getenv("correct_password")
 
 # get connection string from environment (prefer MONGO_URI, then mongodb_uri, then localhost)
-mongo_uri <- Sys.getenv("MONGO_URI", unset = Sys.getenv("mongodb_uri", unset = "mongodb://localhost:27017"))
+mongo_uri <- Sys.getenv("MONGO_URI")
 
 # if your URI does NOT include the database, set db name here:
 db_name <- "wedding"          # change to your DB
