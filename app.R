@@ -1,3 +1,17 @@
+# Entrée mapping (short label -> full description)
+entree_map <- list(
+  "Sirloin" = "Grilled top sirloin — peppercorn gravy, fried onions, mashed potato & asparagus",
+  "Chicken" = "Cider brined roasted chicken supreme — herb mustard sauce, mashed potato & asparagus",
+  "Salmon" = "Seared maple & Organic lager glazed salmon — tarragon cream sauce, mashed potato & asparagus",
+  "Portobello" = "Portobello mushroom schnitzel — mushroom 'demi', fresh herb, mashed potato & asparagus"
+)
+# Entrée choices (full descriptions)
+entree_choices <- c(
+  "Grilled top sirloin — peppercorn gravy, fried onions, mashed potato & asparagus",
+  "Cider brined roasted chicken supreme — herb mustard sauce, mashed potato & asparagus",
+  "Seared maple & Organic lager glazed salmon — tarragon cream sauce, mashed potato & asparagus",
+  "Portobello mushroom schnitzel — mushroom \"demi\", fresh herb, mashed potato & asparagus"
+)
 library(shiny)
 library(mongolite)
 
@@ -250,15 +264,21 @@ ui <- fluidPage(
           ),
 
           selectInput(
-            "meal",
-            "Meal Preference",
-            choices = c(
-              "No Preference",
-              "Vegetarian",
-              "Vegan",
-              "Gluten-Free",
-              "Other"
-            )
+            "entree",
+            "Entrée Choice",
+            choices = entree_choices,
+            selected = NULL
+          ),
+
+          checkboxGroupInput(
+            "dietary",
+            "Dietary Restrictions (check all that apply)",
+            choices = c("Vegetarian", "Vegan", "Gluten-Free", "Other")
+          ),
+
+          conditionalPanel(
+            condition = "input.dietary && input.dietary.indexOf('Other') !== -1",
+            textInput("dietary_other", "Other dietary restrictions (please specify)")
           ),
 
           textAreaInput(
@@ -364,12 +384,18 @@ server <- function(input, output, session) {
 
   observeEvent(input$submit_rsvp, {
     req(input$guest_name)
+    req(input$entree)
+
+    dietary_sel <- if (!is.null(input$dietary)) paste(input$dietary, collapse = "; ") else "None"
+    dietary_other <- if (!is.null(input$dietary_other) && nzchar(input$dietary_other)) input$dietary_other else NA
 
     new_rsvp <- data.frame(
       name = input$guest_name,
       attendance = input$attendance,
       guest_count = input$guest_count,
-      meal = input$meal,
+      entree = input$entree,
+      dietary_restrictions = dietary_sel,
+      dietary_other = dietary_other,
       notes = input$message,
       submitted_at = as.character(Sys.time()),
       stringsAsFactors = FALSE
