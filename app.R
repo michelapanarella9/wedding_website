@@ -1,39 +1,38 @@
 library(shiny)
 library(mongolite)
 
-# Environment variables
 app_password <- Sys.getenv("correct_password")
-
-# get connection string from environment (prefer MONGO_URI, then mongodb_uri, then localhost)
 mongo_uri <- Sys.getenv("MONGO_URI")
 
-# if your URI does NOT include the database, set db name here:
-db_name <- "wedding"          # change to your DB
-collection_name <- "rsvp"
+db_name <- "wedding"
+collection_name <- "rsvps"
 
-# create connection
-
-
-# Diagnostic: test MongoDB connection early and print helpful message on failure
-conn_ok <- FALSE
-tryCatch({
-  tmp <- mongo(collection = collection_name, db = db_name, url = mongo_uri)
-  n <- tmp$count()
-  tmp$disconnect()
-  conn_ok <- TRUE
-  message("MongoDB connection OK; collection '", collection_name, "' count: ", n)
-}, error = function(e) {
-  message("MongoDB connection failed: ", e$message)
-  message("Tried URI: ", substr(mongo_uri, 1, 200))
-})
-
-# Create the collection handle used by the app (this may still error if auth is incorrect)
-rsvp_collection <- tryCatch(
-  mongo(collection = "rsvps", db = "wedding", url = mongo_uri),
-  error = function(e) {
-    stop("Failed to create 'rsvp_collection': ", e$message)
+make_mongo_connection <- function() {
+  if (mongo_uri == "") {
+    stop("MONGO_URI is empty. Set it in Posit Cloud environment variables.")
   }
-)
+
+  mongo(
+    collection = collection_name,
+    db = db_name,
+    url = mongo_uri
+  )
+}
+
+test_mongo_connection <- function() {
+  tryCatch({
+    con <- make_mongo_connection()
+    n <- con$count()
+    con$disconnect()
+    message("MongoDB connection OK. Collection count: ", n)
+    TRUE
+  }, error = function(e) {
+    message("MongoDB connection failed: ", e$message)
+    FALSE
+  })
+}
+
+conn_ok <- test_mongo_connection()
 
 ui <- fluidPage(
 
@@ -203,15 +202,10 @@ ui <- fluidPage(
         div(
           style = "text-align:center;",
 
-          tags$img(
-            src = "pic.png",
-            class = "hero-img"
-          ),
+          tags$img(src = "pic.png", class = "hero-img"),
 
           div(class = "main-title", "MICHELA & STEPHEN"),
-
           div(class = "divider"),
-
           div(class = "subtitle", "Together with their families"),
 
           br(),
@@ -244,10 +238,7 @@ ui <- fluidPage(
           selectInput(
             "attendance",
             "Will You Attend?",
-            choices = c(
-              "Joyfully Accept",
-              "Regretfully Decline"
-            )
+            choices = c("Joyfully Accept", "Regretfully Decline")
           ),
 
           numericInput(
@@ -289,17 +280,17 @@ ui <- fluidPage(
           div(class = "section-title", "Wedding Details"),
 
           tags$p(class = "small-caps", "Ceremony"),
-          tags$p("3:00 PM"),
+          tags$p("4:00 PM"),
 
           tags$br(),
 
           tags$p(class = "small-caps", "Cocktail Hour"),
-          tags$p("3:15 PM – 5:00 PM"),
+          tags$p("4:15 PM – 6:00 PM"),
 
           tags$br(),
 
           tags$p(class = "small-caps", "Dinner & Dancing"),
-          tags$p("3:00 PM – Midnight"),
+          tags$p("6:00 PM – 11:45 PM"),
 
           tags$br(),
 
@@ -344,7 +335,15 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$login, {
-    if (input$password == app_password && app_password != "") {
+    if (app_password == "") {
+      showModal(
+        modalDialog(
+          title = "Password not set",
+          "The correct_password environment variable is missing.",
+          easyClose = TRUE
+        )
+      )
+    } else if (input$password == app_password) {
       auth(TRUE)
     } else {
       showModal(
@@ -377,8 +376,9 @@ server <- function(input, output, session) {
     )
 
     tryCatch({
-
-      rsvp_collection$insert(new_rsvp)
+      con <- make_mongo_connection()
+      con$insert(new_rsvp)
+      con$disconnect()
 
       latest_rsvp(new_rsvp)
 
@@ -391,7 +391,6 @@ server <- function(input, output, session) {
       )
 
     }, error = function(e) {
-
       showModal(
         modalDialog(
           title = "Something went wrong",
@@ -399,7 +398,6 @@ server <- function(input, output, session) {
           easyClose = TRUE
         )
       )
-
     })
   })
 
